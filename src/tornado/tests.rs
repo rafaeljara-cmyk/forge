@@ -371,3 +371,31 @@ fn test_tornado_rejects_unknown_input_instead_of_inserting_a_new_scalar() {
     let error = TornadoEngine::new(config, model).err().unwrap();
     assert!(error.contains("missing_price"));
 }
+
+#[test]
+fn test_tornado_rejects_ambiguous_unqualified_input_names() {
+    let mut model = ParsedModel::new();
+    model.scalars.insert(
+        "inputs.price".to_string(),
+        Variable::new("inputs.price".to_string(), Some(100.0), None),
+    );
+    model.scalars.insert(
+        "assumptions.price".to_string(),
+        Variable::new("assumptions.price".to_string(), Some(90.0), None),
+    );
+    model.scalars.insert(
+        "outputs.revenue".to_string(),
+        Variable::new(
+            "outputs.revenue".to_string(),
+            None,
+            Some("=inputs.price * 10".to_string()),
+        ),
+    );
+    let config =
+        TornadoConfig::new("outputs.revenue").with_input(InputRange::new("price", 50.0, 150.0));
+
+    let error = TornadoEngine::new(config, model).err().unwrap();
+    assert!(error.contains("ambiguous"));
+    assert!(error.contains("assumptions.price"));
+    assert!(error.contains("inputs.price"));
+}
